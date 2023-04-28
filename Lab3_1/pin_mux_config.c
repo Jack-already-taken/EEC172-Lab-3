@@ -36,8 +36,8 @@
 //
 //*****************************************************************************
 
-// This file was automatically generated on 4/12/2016 at 4:33:38 PM
-// by TI PinMux version 
+// This file was automatically generated on 4/26/2023 at 5:51:29 PM
+// by TI PinMux version 4.0.1543 
 //
 //*****************************************************************************
 
@@ -60,6 +60,7 @@ void PinMuxConfig(void)
     PinModeSet(PIN_01, PIN_MODE_0);
     PinModeSet(PIN_02, PIN_MODE_0);
     PinModeSet(PIN_03, PIN_MODE_0);
+    PinModeSet(PIN_04, PIN_MODE_0);
     PinModeSet(PIN_05, PIN_MODE_0);
     PinModeSet(PIN_06, PIN_MODE_0);
     PinModeSet(PIN_07, PIN_MODE_0);
@@ -67,13 +68,11 @@ void PinMuxConfig(void)
     PinModeSet(PIN_18, PIN_MODE_0);
     PinModeSet(PIN_21, PIN_MODE_0);
     PinModeSet(PIN_45, PIN_MODE_0);
-    PinModeSet(PIN_50, PIN_MODE_0);
     PinModeSet(PIN_52, PIN_MODE_0);
     PinModeSet(PIN_53, PIN_MODE_0);
     PinModeSet(PIN_58, PIN_MODE_0);
     PinModeSet(PIN_59, PIN_MODE_0);
     PinModeSet(PIN_60, PIN_MODE_0);
-    PinModeSet(PIN_61, PIN_MODE_0);
     PinModeSet(PIN_62, PIN_MODE_0);
     PinModeSet(PIN_63, PIN_MODE_0);
     PinModeSet(PIN_64, PIN_MODE_0);
@@ -81,21 +80,24 @@ void PinMuxConfig(void)
     //
     // Enable Peripheral Clocks 
     //
-    PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
     PRCMPeripheralClkEnable(PRCM_GPIOA2, PRCM_RUN_MODE_CLK);
     PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
-
-    //
-    // Configure PIN_04 for GPIO Input
-    //
-    PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-    GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
 
     //
     // Configure PIN_15 for GPIO Input
     //
     PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_61 for UART0 UART0_RTS
+    //
+    PinTypeUART(PIN_61, PIN_MODE_5);
+
+    //
+    // Configure PIN_50 for UART0 UART0_CTS
+    //
+    PinTypeUART(PIN_50, PIN_MODE_12);
 
     //
     // Configure PIN_55 for UART0 UART0_TX
