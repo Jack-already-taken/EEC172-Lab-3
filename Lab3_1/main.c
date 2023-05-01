@@ -218,10 +218,6 @@ static void SysTickInit(void) {
 }
 
 static void GPIOA2IntHandler(void) {    // SW2 handler
-    unsigned long ulStatus;
-
-    ulStatus = MAP_GPIOIntStatus (button.port, true);
-    MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
 
     if (first_edge) {
         SysTickReset();
@@ -237,20 +233,27 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
         SysTickReset();
 
         // print measured time to UART
-        Report("cycles = %d\tms = %d\n\r", delta, delta_us);
-
+        Report("cycles = %d\tms = %d\tedgecount = %d\n\r", delta, delta_us, SW_intcount);
+        /*
         store[storeCount] = delta_us;
 
         if(storeCount < 100-1)
             storeCount++;
         else
             storeCount = 0;
+        */
     }
     SW_intcount++;
     if (SW_intcount == 34) {
         SW_intcount = 0;
         first_edge = 1;
     }
+
+    unsigned long ulStatus;
+
+    ulStatus = MAP_GPIOIntStatus (button.port, true);
+    MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
+
     /*
     SW_intflag=1;
 
@@ -292,7 +295,7 @@ int main() {
     // Configure rising edge interrupts on SW2 and SW3
     //
 
-    MAP_GPIOIntTypeSet(button.port, button.pin, GPIO_FALLING_EDGE);    // SW2
+    MAP_GPIOIntTypeSet(button.port, button.pin, GPIO_BOTH_EDGES);    // SW2
 
     unsigned long ulStatus;
     ulStatus = MAP_GPIOIntStatus (button.port, false);
@@ -331,8 +334,10 @@ int main() {
 
         // print measured time to UART
         Report("cycles = %d\tms = %d\n\r", delta, delta_us); */
+        /*
         Report("SW2 ints = %d\r\n",SW_intcount);
         UtilsDelay(3000000);
+        */
     }
 }
 
