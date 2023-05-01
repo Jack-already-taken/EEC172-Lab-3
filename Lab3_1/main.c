@@ -244,6 +244,13 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
         else
             storeCount = 0;
 
+        if (delta_us >= 40000) {
+            SW_intcount = 0;
+        }
+        else if (delta_us > 2500 && delta_us < 40000) {
+            data = 0;
+            SW_intcount = 0;
+        }
         if(delta_us > 1300 && delta_us < 2500)
         {
             data = data << 1;
