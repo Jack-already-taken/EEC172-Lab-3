@@ -81,7 +81,7 @@ extern void (* const g_pfnVectors[])(void);
 
 volatile unsigned long SW_intcount = 0;
 volatile unsigned char SW_intflag;
-volatile long int store[100];
+volatile uint64_t store[100];
 volatile int storeCount =0;
 volatile int first_edge = 1;
 
@@ -233,20 +233,22 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
         SysTickReset();
 
         // print measured time to UART
-        Report("cycles = %d\tms = %d\tedgecount = %d\n\r", delta, delta_us, SW_intcount);
-        /*
+        //Report("cycles = %d\tms = %d\tedgecount = %d\n\r", delta, delta_us, SW_intcount);
+
         store[storeCount] = delta_us;
 
         if(storeCount < 100-1)
             storeCount++;
         else
             storeCount = 0;
-        */
+
     }
     SW_intcount++;
     if (SW_intcount == 34) {
         SW_intcount = 0;
         first_edge = 1;
+        storeCount = 0;
+        SW_intflag = 1;
     }
 
     unsigned long ulStatus;
@@ -338,6 +340,11 @@ int main() {
         Report("SW2 ints = %d\r\n",SW_intcount);
         UtilsDelay(3000000);
         */
+        int i;
+        for (i = 0; i < 33; i++) {
+            Report("ms = %d\tedgecount = %d\n\r", store[i], i);
+        }
+        SW_intflag = 0;
     }
 }
 
