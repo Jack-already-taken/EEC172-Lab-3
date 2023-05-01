@@ -36,19 +36,21 @@
 // Pin configurations
 #include "pin_mux_config.h"
 
-/*
-#define B0      0xB00000010111111010000000011111111
-#define B1      0x2FD807F // 0000 0010 1111 1101 1000 0000 0111 1111
-#define B2      0x2FD40BF // 0000 0010 1111 1101 0100 0000 1011 1111
-#define B3      0x2FDC03F // 0000 0010 1111 1101 1100 0000 0011 1111
-#define B4      0x2FD20DF // 0000 0010 1111 1101 0010 0000 1101 1111
-#define B5      0x2FDA05F // 0000 0010 1111 1101 1010 0000 0101 1111
-#define B6      0x2FD609F // 0000 0010 1111 1101 0110 0000 1001 1111
-#define B7      0x2FD //
-#define B8      0x2FD
-#define B9      0x2FD
-#define MUTE    0x2FD
-#define LAST    0x2FD*/
+
+#define B0      0b00000010111111010000000011111111
+#define B1      0b00000010111111011000000001111111
+#define B2      0b00000010111111010100000010111111
+#define B3      0b00000010111111011100000000111111
+#define B4      0b00000010111111010010000011011111
+#define B5      0b00000010111111011010000001011111
+#define B6      0b00000010111111010110000010011111
+#define B7      0b00000010111111011110000000011111
+#define B8      0b00000010111111010001000011101111
+#define B9      0b00000010111111011001000001101111
+#define MUTE    0b00000010111111010000100011110111
+#define LAST    0b00000010111111010000001011111101
+
+unsigned long data = 0;
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
@@ -84,7 +86,7 @@ volatile unsigned char SW_intflag;
 volatile uint64_t store[100];
 volatile int storeCount =0;
 volatile int first_edge = 1;
-
+int start  = 0;
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -98,23 +100,23 @@ typedef struct PinSetting {
 static PinSetting button = { .port = GPIOA2_BASE, .pin = 0x2};
 
 //*****************************************************************************
-//                      LOCAL FUNCTION PROTOTYPES                           
+//                      LOCAL FUNCTION PROTOTYPES
 //*****************************************************************************
 static void BoardInit(void);
 
 //*****************************************************************************
-//                      LOCAL FUNCTION DEFINITIONS                         
+//                      LOCAL FUNCTION DEFINITIONS
 //*****************************************************************************
 
 // Displays Message According to the Button Pressed
-/*void DisplayButtonPressed(unsigned long value)
+void DisplayButtonPressed(unsigned long value)
 {
     switch(value)
     {
         case B0:
             Report("0 was pressed. \n\r");
             break;
- /*       case B1:
+        case B1:
             Report("1 was pressed. \n\r");
             break;
         case B2:
@@ -151,7 +153,7 @@ static void BoardInit(void);
             Report("Error. \n\r");
             break;
     }
-}*/
+}
 
 /**
  * Reset SysTick Counter
@@ -241,10 +243,23 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
             storeCount++;
         else
             storeCount = 0;
+        if(delta_us > 1300 )
+        if(delta_us > 1300 && delta_us < 2500)
+        {
+            data = data << 1;
+            data = data + 1;
+        } else if(delta_us < 1300)
+        {
+            data = data << 1;
+        } else if(delta_us > 2500)
+        {
+            data = 0;
+        }
 
     }
     SW_intcount++;
     if (SW_intcount == 34) {
+        DisplayButtonPressed(data);
         SW_intcount = 0;
         first_edge = 1;
         storeCount = 0;
@@ -255,12 +270,6 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
     ulStatus = MAP_GPIOIntStatus (button.port, true);
     MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
-
-    /*
-    SW_intflag=1;
-
-    SW_intflag = 0;
-    */
 
 }
 //****************************************************************************
@@ -297,7 +306,7 @@ int main() {
     // Configure rising edge interrupts on SW2 and SW3
     //
 
-    MAP_GPIOIntTypeSet(button.port, button.pin, GPIO_BOTH_EDGES);    // SW2
+    MAP_GPIOIntTypeSet(button.port, button.pin, GPIO_FALLING_EDGE);    // SW2
 
     unsigned long ulStatus;
     ulStatus = MAP_GPIOIntStatus (button.port, false);
@@ -317,29 +326,6 @@ int main() {
 
     while (1) {
         while(SW_intflag == 0){;}
-
-/*        SW_intflag = 0;
-        // reset the countdown register
-        SysTickReset();
-
-        // wait for a fixed number of cycles
-        // should be 3000 i think (see utils.c)
-        UtilsDelay(1000);
-
-        // read the countdown register and compute elapsed cycles
-        uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
-
-        // convert elapsed cycles to microseconds
-        uint64_t delta_us = TICKS_TO_US(delta);
-
-
-
-        // print measured time to UART
-        Report("cycles = %d\tms = %d\n\r", delta, delta_us); */
-        /*
-        Report("SW2 ints = %d\r\n",SW_intcount);
-        UtilsDelay(3000000);
-        */
         int i;
         for (i = 0; i < 33; i++) {
             Report("ms = %d\tedgecount = %d\n\r", store[i], i);
