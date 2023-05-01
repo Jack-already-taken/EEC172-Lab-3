@@ -3,8 +3,8 @@
 //
 // Application Name     - TV Remote Decoder (TV Code: Zonda 1355)
 // Application Overview - The objective of this application is to demonstrate
-//							GPIO interrupts using SW2 and SW3.
-//							NOTE: the switches are not debounced!
+//                          GPIO interrupts using SW2 and SW3.
+//                          NOTE: the switches are not debounced!
 //
 //*****************************************************************************
 
@@ -71,6 +71,7 @@
 // systick reload value set to 40ms period
 // (PERIOD_SEC) * (SYSCLKFREQ) = PERIOD_TICKS
 #define SYSTICK_RELOAD_VAL 3200000UL
+#define ZERO_INT 100
 
 // track systick counter periods elapsed
 // if it is not 0, we know the transmission ended
@@ -78,10 +79,11 @@ volatile int systick_cnt = 0;
 
 extern void (* const g_pfnVectors[])(void);
 
-volatile unsigned long SW_intcount;
+volatile unsigned long SW_intcount = 0;
 volatile unsigned char SW_intflag;
 volatile long int store[100];
 volatile int storeCount =0;
+volatile int first_edge = 1;
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
@@ -186,8 +188,8 @@ static void SysTickHandler(void) {
 //*****************************************************************************
 static void
 BoardInit(void) {
-	MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
-    
+    MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+
     // Enable Processor
     //
     MAP_IntMasterEnable();
@@ -220,25 +222,28 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
     ulStatus = MAP_GPIOIntStatus (button.port, true);
     MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
+
+    if (first_edge) {
+        SysTickReset();
+    }
+    else {
+        // read the countdown register and compute elapsed cycles
+        uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
+
+        // convert elapsed cycles to microseconds
+        uint64_t delta_us = TICKS_TO_US(delta);
+
+        SysTickReset();
+
+        // print measured time to UART
+        Report("cycles = %d\tms = %d\n\r", delta, delta_us);
+    }
     SW_intcount++;
+    /*
     SW_intflag=1;
 
     SW_intflag = 0;
-    // reset the countdown register
-    SysTickReset();
-
-    // wait for a fixed number of cycles
-    // should be 3000 i think (see utils.c)
-    UtilsDelay(1000);
-
-    // read the countdown register and compute elapsed cycles
-    uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
-
-    // convert elapsed cycles to microseconds
-    uint64_t delta_us = TICKS_TO_US(delta);
-
-    // print measured time to UART
-    Report("cycles = %d\tms = %d\n\r", delta, delta_us);
+    */
 
     store[storeCount] = delta_us;
 
