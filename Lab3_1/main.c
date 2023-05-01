@@ -225,6 +225,7 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
     if (first_edge) {
         SysTickReset();
+        first_edge = 0;
     }
     else {
         // read the countdown register and compute elapsed cycles
@@ -237,20 +238,24 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
         // print measured time to UART
         Report("cycles = %d\tms = %d\n\r", delta, delta_us);
+
+        store[storeCount] = delta_us;
+
+        if(storeCount < 100-1)
+            storeCount++;
+        else
+            storeCount = 0;
     }
     SW_intcount++;
+    if (SW_intcount == 34) {
+        SW_intcount = 0;
+        first_edge = 1;
+    }
     /*
     SW_intflag=1;
 
     SW_intflag = 0;
     */
-
-    store[storeCount] = delta_us;
-
-    if(storeCount < 100-1)
-        storeCount++;
-    else
-        storeCount = 0;
 
 }
 //****************************************************************************
