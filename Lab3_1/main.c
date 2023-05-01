@@ -1,38 +1,43 @@
-// Jack Xiang
-// Anayeli Martinez 
+
+//*****************************************************************************
+//
+// Application Name     - TV Remote Decoder (TV Code: Zonda 1355)
+// Application Overview - The objective of this application is to demonstrate
+//							GPIO interrupts using SW2 and SW3.
+//							NOTE: the switches are not debounced!
+//
+//*****************************************************************************
 
 // Standard includes
-#include <string.h>
-#include <stdio.h>
-#include <stdbool.h>
-
-// Driverlib includes
-#include "hw_types.h"
-#include "hw_memmap.h"
-#include "hw_common_reg.h"
-#include "hw_ints.h"
-#include "spi.h"
-#include "rom.h"
-#include "rom_map.h"
-#include "utils.h"
-#include "prcm.h"
-#include "uart.h"
-#include "interrupt.h"
 #include <stdio.h>
 #include <stdint.h>
 
+// Driverlib includes
+#include "hw_types.h"
+#include "hw_ints.h"
 #include "hw_nvic.h"
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "interrupt.h"
 #include "hw_apps_rcm.h"
+#include "prcm.h"
+#include "rom.h"
+#include "prcm.h"
+#include "utils.h"
 #include "systick.h"
-
+#include "rom_map.h"
+#include "interrupt.h"
+#include "gpio.h"
+#include "utils.h"
 
 // Common interface includes
 #include "uart_if.h"
+
+// Pin configurations
 #include "pin_mux_config.h"
 
-
-#define APPLICATION_VERSION     "1.1.1"
-#define B0      0x2FD
+/*
+#define B0      0xB00000010111111010000000011111111
 #define B1      0x2FD807F // 0000 0010 1111 1101 1000 0000 0111 1111
 #define B2      0x2FD40BF // 0000 0010 1111 1101 0100 0000 1011 1111
 #define B3      0x2FDC03F // 0000 0010 1111 1101 1100 0000 0011 1111
@@ -43,10 +48,12 @@
 #define B8      0x2FD
 #define B9      0x2FD
 #define MUTE    0x2FD
-#define LAST    0x2FD
+#define LAST    0x2FD*/
+
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
 //*****************************************************************************
+
 // some helpful macros for systick
 
 // the cc3200's fixed clock frequency of 80 MHz
@@ -68,74 +75,44 @@
 // track systick counter periods elapsed
 // if it is not 0, we know the transmission ended
 volatile int systick_cnt = 0;
-/*
+
 extern void (* const g_pfnVectors[])(void);
 
-
-#if defined(ccs)
-extern void (* const g_pfnVectors[])(void);
-#endif
-#if defined(ewarm)
-extern uVectorEntry __vector_table;
-#endif*/
-
+volatile unsigned long SW_intcount;
+volatile unsigned char SW_intflag;
+volatile long int store[100];
+volatile int storeCount =0;
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
 
+// an example of how you can use structs to organize your pin settings for easier maintenance
+typedef struct PinSetting {
+    unsigned long port;
+    unsigned int pin;
+} PinSetting;
+
+static PinSetting button = { .port = GPIOA2_BASE, .pin = 0x2};
+
 //*****************************************************************************
-//                      LOCAL FUNCTION PROTOTYPES
+//                      LOCAL FUNCTION PROTOTYPES                           
 //*****************************************************************************
 static void BoardInit(void);
 
 //*****************************************************************************
-//                      LOCAL FUNCTION DEFINITIONS
+//                      LOCAL FUNCTION DEFINITIONS                         
 //*****************************************************************************
 
-/**
- * Reset SysTick Counter
- */
-static inline void SysTickReset(void) {
-    // any write to the ST_CURRENT register clears it
-    // after clearing it automatically gets reset without
-    // triggering exception logic
-    // see reference manual section 3.2.1
-    HWREG(NVIC_ST_CURRENT) = 1;
-
-    // clear the global count variable
-    systick_cnt = 0;
-}
-
-/**
- * SysTick Interrupt Handler
- *
- * Keep track of whether the systick counter wrapped
- */
-static void SysTickHandler(void) {
-    // increment every time the systick handler fires
-    systick_cnt++;
-}
-
-static void GPIOA1IntHandler(void) { // SW3 handler
-    unsigned long ulStatus;
-
-    ulStatus = MAP_GPIOIntStatus (GPIOA2_BASE, true); // Use GPIO Pin Input (aka IR output)
-    MAP_GPIOIntClear(GPIOA2_BASE, ulStatus);          // clear interrupts on GPIOA2
-//    SW3_intcount++;
-
-//    SW3_intflag=1;
-}
-
 // Displays Message According to the Button Pressed
-void DisplayButtonPressed(unsigned long value)
+/*void DisplayButtonPressed(unsigned long value)
 {
     switch(value)
     {
         case B0:
             Report("0 was pressed. \n\r");
             break;
-        case B1:
+ /*       case B1:
             Report("1 was pressed. \n\r");
             break;
         case B2:
@@ -169,34 +146,48 @@ void DisplayButtonPressed(unsigned long value)
             Report("Mute was pressed. \n\r");
             break;
         default:
+            Report("Error. \n\r");
             break;
     }
+}*/
+
+/**
+ * Reset SysTick Counter
+ */
+static inline void SysTickReset(void) {
+    // any write to the ST_CURRENT register clears it
+    // after clearing it automatically gets reset without
+    // triggering exception logic
+    // see reference manual section 3.2.1
+    HWREG(NVIC_ST_CURRENT) = 1;
+
+    // clear the global count variable
+    systick_cnt = 0;
 }
+
+/**
+ * SysTick Interrupt Handler
+ *
+ * Keep track of whether the systick counter wrapped
+ */
+static void SysTickHandler(void) {
+    // increment every time the systick handler fires
+    systick_cnt++;
+}
+
 //*****************************************************************************
 //
-// Board Initialization & Configuration
-//
-// \param  None
-//
-// \return None
+//! Board Initialization & Configuration
+//!
+//! \param  None
+//!
+//! \return None
 //
 //*****************************************************************************
 static void
-BoardInit(void)
-{
-/* In case of TI-RTOS vector table is initialize by OS itself */
-#ifndef USE_TIRTOS
-  //
-  // Set vector table base
-  //
-#if defined(ccs)
-    MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
-#endif
-#if defined(ewarm)
-    MAP_IntVTableBaseSet((unsigned long)&__vector_table);
-#endif
-#endif
-    //
+BoardInit(void) {
+	MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+    
     // Enable Processor
     //
     MAP_IntMasterEnable();
@@ -224,78 +215,95 @@ static void SysTickInit(void) {
     MAP_SysTickEnable();
 }
 
-static void GPIO_Interrupt()
-{
-    // Register Interrupt Handler
-    MAP_GPIOIntRegister(GPIOA2_BASE, FallingEdge()); // recommend falling edge
-    // Configure Particular Edge
-    MAP_GPIOIntTypeSet(GPIOA2_BASE, 0x40, GPIO_FALLING_EDGE);
-    // Clear Interrupt
-    MAP_GPIOIntClear(GPIOA2_BASE, MAP_GPIOIntStatus(GPIOA2_BASE, true));
-    // Enable Interrupt 
-    MAP_GPIOIntEnable(GPIOA2_BASE, 0x40);
+static void GPIOA2IntHandler(void) {    // SW2 handler
+    unsigned long ulStatus;
 
+    ulStatus = MAP_GPIOIntStatus (button.port, true);
+    MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
+    SW_intcount++;
+    SW_intflag=1;
+
+    SW_intflag = 0;
+    // reset the countdown register
+    SysTickReset();
+
+    // wait for a fixed number of cycles
+    // should be 3000 i think (see utils.c)
+    UtilsDelay(1000);
+
+    // read the countdown register and compute elapsed cycles
+    uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
+
+    // convert elapsed cycles to microseconds
+    uint64_t delta_us = TICKS_TO_US(delta);
+
+    // print measured time to UART
+    Report("cycles = %d\tms = %d\n\r", delta, delta_us);
+
+    store[storeCount] = delta_us;
+
+    if(storeCount < 100-1)
+        storeCount++;
+    else
+        storeCount = 0;
 
 }
-
-static void FallingEdge()
-{
-    
-   
-}
-//*****************************************************************************
+//****************************************************************************
 //
-//! Main function for spi demo application
+//! Main function
 //!
 //! \param none
+//! 
 //!
 //! \return None.
 //
-//*****************************************************************************
-void main()
-{
-    //
-    // Initialize Board configurations
-    //
+//****************************************************************************
+int main() {
+
     BoardInit();
-
-    //
-    // Muxing UART and SPI lines.
-    //
+    
     PinMuxConfig();
-
+    
     // Enable SysTick
     SysTickInit();
 
-    //
-    // Initialising the Terminal.
-    //
+    // Initialize UART Terminal
     InitTerm();
 
-    //
-    // Clearing the Terminal.
-    //
+    // Clear UART Terminal
     ClearTerm();
 
     //
-    // Display the Banner
+    // Register the interrupt handlers
     //
-    Message("\n\n\n\r");
-    Message("\t\t   ********************************************\n\r");
-    Message("\t\t        CC3200 IR Transmission Application  \n\r");
-    Message("\t\t   ********************************************\n\r");
-    Message("\n\n\n\r");
+    MAP_GPIOIntRegister(button.port, GPIOA2IntHandler);
 
     //
-    // Reset the peripheral
+    // Configure rising edge interrupts on SW2 and SW3
     //
-   // MAP_PRCMPeripheralReset(PRCM_GSPI);
-// GPIO = determines (falling/rising edge)pulses that are coming
-// Systic = reload value - just define it, it gets called automatically
 
-    GPIO_Interrupt();
+    MAP_GPIOIntTypeSet(button.port, button.pin, GPIO_FALLING_EDGE);    // SW2
+
+    unsigned long ulStatus;
+    ulStatus = MAP_GPIOIntStatus (button.port, false);
+    MAP_GPIOIntClear(button.port, ulStatus);           // clear interrupts on GPIOA2
+
+    // clear global variables
+    SW_intcount=0;
+    SW_intflag=0;
+
+    // Enable SW2 and SW3 interrupts
+    MAP_GPIOIntEnable(button.port, button.pin);
+
+    Message("\t\t****************************************************\n\r");
+    Message("\t\t\tSystick Example\n\r");
+    Message("\t\t ****************************************************\n\r");
+    Message("\n\n\n\r");
 
     while (1) {
+        while(SW_intflag == 0){;}
+
+/*        SW_intflag = 0;
         // reset the countdown register
         SysTickReset();
 
@@ -305,36 +313,22 @@ void main()
 
         // read the countdown register and compute elapsed cycles
         uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
-        //total ticks - gets current number of ticks = completed number of ticks
 
         // convert elapsed cycles to microseconds
-        uint64_t delta_us = TICKS_TO_US(delta); // Determines whether it is 0 or 1
+        uint64_t delta_us = TICKS_TO_US(delta);
+
+
 
         // print measured time to UART
-        Report("cycles = %d\tms = %d\n\r", delta, delta_us); // 3 byte = data
-        // Clear GPIO interrupt
-
+        Report("cycles = %d\tms = %d\n\r", delta, delta_us); */
+        Report("SW2 ints = %d\r\n",SW_intcount);
+        UtilsDelay(3000000);
     }
-
 }
 
-/*    //
-    // Reset SPI
-    //
-    MAP_SPIReset(GSPI_BASE);
-
-    //
-    // Configure SPI interface
-    //
-    MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
-                     SPI_IF_BIT_RATE,SPI_MODE_SLAVE,SPI_SUB_MODE_0,
-                     (SPI_HW_CTRL_CS |
-                     SPI_4PIN_MODE |
-                     SPI_TURBO_OFF |
-                     SPI_CS_ACTIVEHIGH |
-                     SPI_WL_8));
-
-    //
-    // Register Interrupt Handler
-    //
-    MAP_SPIIntRegister(GSPI_BASE,SlaveIntHandler);*/
+//*****************************************************************************
+//
+// Close the Doxygen group.
+//! @}
+//
+//*****************************************************************************
