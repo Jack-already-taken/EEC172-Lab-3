@@ -150,7 +150,7 @@ void DisplayButtonPressed(unsigned long value)
             Report("Mute was pressed. \n\r");
             break;
         default:
-            Report("Error. \n\r");
+            Report("Error. Data = %d\n\r", data);
             break;
     }
 }
@@ -243,7 +243,7 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
             storeCount++;
         else
             storeCount = 0;
-        if(delta_us > 1300 )
+
         if(delta_us > 1300 && delta_us < 2500)
         {
             data = data << 1;
@@ -251,7 +251,7 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
         } else if(delta_us < 1300)
         {
             data = data << 1;
-        } else if(delta_us > 2500)
+        }else if(delta_us > 2500)
         {
             data = 0;
         }
@@ -259,11 +259,12 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
     }
     SW_intcount++;
     if (SW_intcount == 34) {
-        DisplayButtonPressed(data);
         SW_intcount = 0;
         first_edge = 1;
         storeCount = 0;
         SW_intflag = 1;
+//        DisplayButtonPressed(data);
+//        data = 0;
     }
 
     unsigned long ulStatus;
@@ -326,11 +327,14 @@ int main() {
 
     while (1) {
         while(SW_intflag == 0){;}
+        DisplayButtonPressed(data);
         int i;
         for (i = 0; i < 33; i++) {
-            Report("ms = %d\tedgecount = %d\n\r", store[i], i);
+
+            Report("ms = %d\tedgecount = %d\t\n\r", store[i], i);
         }
         SW_intflag = 0;
+        data = 0;
     }
 }
 
