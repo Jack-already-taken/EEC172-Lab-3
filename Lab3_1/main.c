@@ -103,6 +103,8 @@ volatile unsigned char SW_intflag;
 volatile int first_edge = 1;
 int start  = 0;
 char  prevLetter = '/';
+char buffer[32];
+int bufIndex = 0;
 
 volatile long currButton;
 volatile long prevButton;
@@ -485,10 +487,10 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
         SysTickReset();
 
-        if (delta_us >= 40000)
+        if (delta_us >= 35000)
         {
             SW_intcount = 0;
-        }else if (delta_us > 2500 && delta_us < 40000)
+        }else if (delta_us >= 2500 && delta_us < 35000)
         { // Finds Start Time
             data = 0;
             SW_intcount = 1;
@@ -585,8 +587,8 @@ int main() {
     prevButton = -1;
     char letter;
     uint64_t delta, delta_us;
-    
-    
+
+
     while (1) {
         while(SW_intflag == 0){;}
 
@@ -598,27 +600,77 @@ int main() {
 
         // UART displays what button was pressed
         DisplayButtonPressed(data);
+        prevData = data;
+        letter = firstLetter(prevData);
+        SW_intflag = 0;
+
+        if (prevData != B0 && prevData != B1 && prevData != MUTE && prevData != LAST) {
+            /*
+            SysTickReset();
+            // read the countdown register and compute elapsed cycles
+            uint64_t delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
+
+            // convert elapsed cycles to microseconds
+            uint64_t delta_us = TICKS_TO_US(delta);
+            */
+            uint64_t timeInterval = 0;
+            while (timeInterval++ < 3500000) {
+                if (SW_intflag) {
+                    if(prevData == data)
+                    {
+                        sameButton = 1;
+                        currButton++;
+                    }
+                    else
+                        sameButton = 0;
+
+                    // Displays Letter
+                    if(sameButton)
+                    {
+                        letter = DisplayNextLetter(letter);
+                        timeInterval = 0;
+                    }
+                    else
+                    {
+                        SW_intflag = 1;
+                        break;
+                    }
+                    SW_intflag = 0;
+                }
+                /*
+                // read the countdown register and compute elapsed cycles
+                delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
+
+                // convert elapsed cycles to microseconds
+                delta_us = TICKS_TO_US(delta);
+                */
+                //Report("time %d, %d \n\r", timeInterval, data);
+            }
+        }
+        Report("letter %c selected \n\r", letter);
+
+        if (letter == '+') {
+            Report("String: %s \n\r", buffer);
+            bufIndex = 0;
+            int i;
+            for (i = 0; i < 32; i++) {
+                buffer[i] = '\0';
+            }
+        }
+        else if (letter == '-') {
+            if (bufIndex > 0) {
+                buffer[--bufIndex] = '\0';
+            }
+        }
+        else {
+            buffer[bufIndex++] = letter;
+        }
+
 
         // Determines if the same button was pressed
-        if(prevData == data)
-        {
-            sameButton = 1;
-            currButton++;
-        }
-        else
-            sameButton = 0;
-
-        // Displays Letter
-        if(sameButton)
-            letter = DisplayNextLetter(letter);
-        else
-            letter = firstLetter(data);
 
         // Saves New Button Information
         prevButton = currButton;
-        prevData = data;
-        SW_intflag = 0;
-        data = 0;
     }
 }
 
