@@ -36,7 +36,7 @@
 //
 //*****************************************************************************
 
-// This file was automatically generated on 5/2/2023 at 4:28:06 PM
+// This file was automatically generated on 5/2/2023 at 4:49:27 PM
 // by TI PinMux version 4.0.1543 
 //
 //*****************************************************************************
@@ -61,7 +61,7 @@ void PinMuxConfig(void)
     PinModeSet(PIN_02, PIN_MODE_0);
     PinModeSet(PIN_03, PIN_MODE_0);
     PinModeSet(PIN_04, PIN_MODE_0);
-    PinModeSet(PIN_05, PIN_MODE_0);
+    PinModeSet(PIN_06, PIN_MODE_0);
     PinModeSet(PIN_21, PIN_MODE_0);
     PinModeSet(PIN_45, PIN_MODE_0);
     PinModeSet(PIN_50, PIN_MODE_0);
@@ -107,9 +107,9 @@ void PinMuxConfig(void)
     GPIODirModeSet(GPIOA3_BASE, 0x10, GPIO_DIR_MODE_IN);
 
     //
-    // Configure PIN_06 for SPI0 GSPI_MISO
+    // Configure PIN_05 for SPI0 GSPI_CLK
     //
-    PinTypeSPI(PIN_06, PIN_MODE_7);
+    PinTypeSPI(PIN_05, PIN_MODE_7);
 
     //
     // Configure PIN_07 for SPI0 GSPI_MOSI
@@ -136,3 +136,4 @@ void PinMuxConfig(void)
     //
     PinTypeUART(PIN_57, PIN_MODE_3);
 }
+
