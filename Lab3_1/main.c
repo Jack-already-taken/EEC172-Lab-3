@@ -30,6 +30,11 @@
 #include "gpio.h"
 #include "utils.h"
 
+#include "Adafruit_SSD1351.h"
+#include "Adafruit_GFX.h"
+#include "glcdfont.h"
+#include "spi.h"
+
 // Common interface includes
 #include "uart_if.h"
 
@@ -51,10 +56,22 @@
 #define LAST    0b00000010111111010000001011111101
 
 unsigned long data = 0;
+int track = 0;
+
+#define BLACK           0x0000
+#define BLUE            0x001F
+#define GREEN           0x07E0
+#define CYAN            0x07FF
+#define RED             0xF800
+#define MAGENTA         0xF81F
+#define YELLOW          0xFFE0
+#define WHITE           0xFFFF
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
 //*****************************************************************************
+
+#define SPI_IF_BIT_RATE  100000
 
 // some helpful macros for systick
 
@@ -83,10 +100,17 @@ extern void (* const g_pfnVectors[])(void);
 
 volatile unsigned long SW_intcount = 0;
 volatile unsigned char SW_intflag;
-volatile uint64_t store[100];
-volatile int storeCount =0;
 volatile int first_edge = 1;
 int start  = 0;
+char  prevLetter = '/';
+
+volatile long currButton;
+volatile long prevButton;
+volatile long prevData;
+//volatile long currData;
+int sameButton = 0;
+int EnterMessage = 0;
+
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -155,6 +179,197 @@ void DisplayButtonPressed(unsigned long value)
     }
 }
 
+char firstLetter(unsigned long value)
+{
+    char letter;
+    switch(value)
+    {
+        case B0:
+            letter = ' ';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B1:
+            letter = '*';
+            Report("letter: color, %c \n\r", letter);
+            break;
+        case B2:
+            letter = 'a';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B3:
+            letter = 'd';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B4:
+            letter = 'g';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B5:
+            letter = 'j';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B6:
+            letter = 'm';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B7:
+            letter = 'p';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B8:
+            letter = 't';
+            Report("letter: %c \n\r", letter);
+            break;
+        case B9:
+            letter = 'w';
+            Report("letter: %c \n\r", letter);
+            break;
+        case MUTE:
+            letter = '-';
+            Report("letter: %c \n\r", letter);
+            break;
+        case LAST:
+            letter = '+';
+            Report("letter: %c \n\r", letter);
+            break;
+        default:
+            Report("error not valid. \n\r", letter);
+            break;
+    }
+    return letter;
+}
+
+char DisplayNextLetter(char l)
+{
+    char letter;
+    switch(l)
+    {
+        case ' ':
+            letter = ' ';
+            Report("letter: %c \n\r", letter);
+            break;
+        case '*':
+            letter = '*';
+            Report("letter: %c Choose Color \n \r", letter);
+            break;
+        case 'a':
+            letter = 'b';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'b':
+            letter = 'c';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'c':
+            letter = 'a';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'd':
+            letter = 'e';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'e':
+            letter = 'f';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'f':
+            letter = 'd';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'g':
+            letter = 'h';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'h':
+            letter = 'i';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'i':
+            letter = 'g';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'j':
+            letter = 'k';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'k':
+            letter = 'l';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'l':
+            letter = 'j';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'm':
+            letter = 'n';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'n':
+            letter = 'o';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'o':
+            letter = 'm';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'p':
+            letter = 'q';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'q':
+            letter = 'r';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'r':
+            letter = 's';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 's':
+            letter = 'p';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 't':
+            letter = 'u';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'u':
+            letter = 'v';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'v':
+            letter = 't';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'w':
+            letter = 'x';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'x':
+            letter = 'y';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'y':
+            letter = 'z';
+            Report("letter: %c \n\r", letter);
+            break;
+        case 'z':
+            letter = 'w';
+            Report("letter: %c \n\r", letter);
+            break;
+        case '-':
+            letter = '-';
+            Report("letter: %c \n\r", letter);
+            break;
+        case '+':
+            letter = '+';
+            Report("letter: %c \n\r", letter);
+            break;
+        default:
+            Report("error\n\r");
+            break;
+    }
+    return letter;
+}
 /**
  * Reset SysTick Counter
  */
@@ -219,6 +434,42 @@ static void SysTickInit(void) {
     MAP_SysTickEnable();
 }
 
+/*void Uart_Communication(void)
+{
+
+}*/
+
+/*static void SPI_Communication(void){
+
+    //
+    // Enable the SPI module clock
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_GSPI,PRCM_RUN_MODE_CLK);
+    //
+    // Reset SPI
+    //
+    MAP_SPIReset(GSPI_BASE);
+
+    //
+    // Configure SPI interface
+    //
+    MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
+                     SPI_IF_BIT_RATE,SPI_MODE_MASTER,SPI_SUB_MODE_0,
+                     (SPI_SW_CTRL_CS |
+                     SPI_4PIN_MODE |
+                     SPI_TURBO_OFF |
+                     SPI_CS_ACTIVEHIGH |
+                     SPI_WL_8));
+
+    //
+    // Enable SPI for communication
+    //
+    MAP_SPIEnable(GSPI_BASE);
+
+    Adafruit_Init();
+//    delay(100);
+}*/
+
 static void GPIOA2IntHandler(void) {    // SW2 handler
 
     if (first_edge) {
@@ -234,44 +485,34 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
         SysTickReset();
 
-        // print measured time to UART
-        //Report("cycles = %d\tms = %d\tedgecount = %d\n\r", delta, delta_us, SW_intcount);
-
-        store[storeCount] = delta_us;
-
-        if(storeCount < 100-1)
-            storeCount++;
-        else
-            storeCount = 0;
-
-        if (delta_us >= 25000) {
+        if (delta_us >= 40000)
+        {
             SW_intcount = 0;
-        }
-        else if (delta_us > 2500 && delta_us < 25000) {
+        }else if (delta_us > 2500 && delta_us < 40000)
+        { // Finds Start Time
             data = 0;
             SW_intcount = 1;
-        }
-        if(delta_us > 1300 && delta_us < 2500)
-        {
+        }if(delta_us > 1300 && delta_us < 2500)
+        {// Determines 1 bit
             data = data << 1;
             data = data + 1;
         } else if(delta_us < 1300)
-        {
+        {// Determines 0 bit
             data = data << 1;
         }else if(delta_us > 2500)
         {
             data = 0;
         }
-
     }
+
     SW_intcount++;
+
+
+    // Resets interrupt handle for next button pressed
     if (SW_intcount == 34) {
         SW_intcount = 0;
         first_edge = 1;
-        storeCount = 0;
         SW_intflag = 1;
-//        DisplayButtonPressed(data);
-//        data = 0;
     }
 
     unsigned long ulStatus;
@@ -296,6 +537,8 @@ int main() {
     
     PinMuxConfig();
     
+//    Uart_Communication();
+
     // Enable SysTick
     SysTickInit();
 
@@ -304,6 +547,9 @@ int main() {
 
     // Clear UART Terminal
     ClearTerm();
+
+    // Set SPI
+//    SPI_Communication();
 
     //
     // Register the interrupt handlers
@@ -328,18 +574,49 @@ int main() {
     MAP_GPIOIntEnable(button.port, button.pin);
 
     Message("\t\t****************************************************\n\r");
-    Message("\t\t\tSystick Example\n\r");
-    Message("\t\t ****************************************************\n\r");
+    Message("\t\t\t\tSystick Example\n\r\n\r");
+    Message("\t\t to delete press MUTE button\n\r");
+    Message("\t\t to enter press LAST button\n\r");
+    Message("\t\t****************************************************\n\r");
     Message("\n\n\n\r");
 
+    prevData = 1;
+    currButton = -2;
+    prevButton = -1;
+    char letter;
+    uint64_t delta, delta_us;
+    
+    
     while (1) {
         while(SW_intflag == 0){;}
-        DisplayButtonPressed(data);
-        int i;
-        for (i = 0; i < 33; i++) {
 
-            Report("ms = %d\tedgecount = %d\t\n\r", store[i], i);
+        // read the countdown register and compute elapsed cycles
+//        delta = SYSTICK_RELOAD_VAL - SysTickValueGet();
+
+        // convert elapsed cycles to microseconds
+//        delta_us = TICKS_TO_US(delta);
+
+        // UART displays what button was pressed
+        DisplayButtonPressed(data);
+
+        // Determines if the same button was pressed
+        if(prevData == data)
+        {
+            sameButton = 1;
+            currButton++;
         }
+        else
+            sameButton = 0;
+
+        // Displays Letter
+        if(sameButton)
+            letter = DisplayNextLetter(letter);
+        else
+            letter = firstLetter(data);
+
+        // Saves New Button Information
+        prevButton = currButton;
+        prevData = data;
         SW_intflag = 0;
         data = 0;
     }
