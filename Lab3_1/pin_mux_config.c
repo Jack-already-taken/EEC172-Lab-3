@@ -136,3 +136,4 @@ void PinMuxConfig(void)
     //
     PinTypeUART(PIN_57, PIN_MODE_3);
 }
+
