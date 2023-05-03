@@ -69,7 +69,7 @@ void PinMuxConfig(void)
     PinModeSet(PIN_53, PIN_MODE_0);
     PinModeSet(PIN_60, PIN_MODE_0);
     PinModeSet(PIN_61, PIN_MODE_0);
-    PinModeSet(PIN_62, PIN_MODE_0);
+    PinModeSet(PIN_15, PIN_MODE_0);
     PinModeSet(PIN_63, PIN_MODE_0);
     
     //
@@ -95,10 +95,10 @@ void PinMuxConfig(void)
     GPIODirModeSet(GPIOA2_BASE, 0x2, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_15 for GPIO Input
+    // Configure PIN_62 for GPIO Input
     //
-    PinTypeGPIO(PIN_15, PIN_MODE_0, false);
-    GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_IN);
+    PinTypeGPIO(PIN_62, PIN_MODE_0, false);
+    GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
 
     //
     // Configure PIN_18 for GPIO Output
