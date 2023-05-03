@@ -124,7 +124,7 @@ typedef struct PinSetting {
     unsigned int pin;
 } PinSetting;
 
-static PinSetting button = { .port = GPIOA2_BASE, .pin = 0x40};
+static PinSetting button = { .port = GPIOA0_BASE, .pin = 0x80};
 
 //*****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
@@ -454,18 +454,15 @@ void UARTIntHandler(void)
 
 void UART_Communication(void)
 {
-    unsigned long ulIntFlags;
-    UARTConfigSetExpClk(UARTA1_BASE, SYSCLK,
-                            UART_BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                             UART_CONFIG_PAR_NONE));
+    MAP_UARTConfigSetExpClk(UARTA1_BASE, SYSCLK, UART_BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
     UARTFIFODisable(UARTA1_BASE);
-    UARTIntRegister(UARTA1_BASE, UARTIntHandler);
+    MAP_UARTIntRegister(UARTA1_BASE, UARTIntHandler);
     UARTFIFOLevelSet(UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 
     unsigned long ulStatus;
-    ulStatus = UARTIntStatus(UARTA1_BASE, false);
-    UARTIntClear(UARTA1_BASE, ulIntFlags);
-    UARTIntEnable(UARTA1_BASE, UART_INT_RX);
+    ulStatus = MAP_UARTIntStatus(UARTA1_BASE, false);
+    MAP_UARTIntClear(UARTA1_BASE, ulStatus);
+    MAP_UARTIntEnable(UARTA1_BASE, UART_INT_RX);
 }
 
 static void SPI_Communication(void){
