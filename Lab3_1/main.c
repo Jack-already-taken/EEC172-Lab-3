@@ -42,7 +42,7 @@
 // Pin configurations
 #include "pin_mux_config.h"
 
-
+// Signal Bits
 #define B0      0b00000010111111010000000011111111
 #define B1      0b00000010111111011000000001111111
 #define B2      0b00000010111111010100000010111111
@@ -55,18 +55,6 @@
 #define B9      0b00000010111111011001000001101111
 #define MUTE    0b00000010111111010000100011110111
 #define LAST    0b00000010111111010000001011111101
-
-unsigned long data = 0;
-int track = 0;
-
-#define BLACK           0x0000
-#define BLUE            0x001F
-#define GREEN           0x07E0
-#define CYAN            0x07FF
-#define RED             0xF800
-#define MAGENTA         0xF81F
-#define YELLOW          0xFFE0
-#define WHITE           0xFFFF
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
@@ -100,19 +88,22 @@ volatile int systick_cnt = 0;
 extern void (* const g_pfnVectors[])(void);
 
 volatile unsigned long SW_intcount = 0;
-volatile unsigned char SW_intflag;
+volatile unsigned SW_intflag;
 volatile int first_edge = 1;
 int start  = 0;
 char  prevLetter = '/';
-char buffer[32];
+char buffer[64];
 int bufIndex = 0;
 
 volatile long currButton;
 volatile long prevButton;
 volatile long prevData;
-//volatile long currData;
 int sameButton = 0;
 int EnterMessage = 0;
+
+unsigned long data = 0;
+int track = 0;
+int color = 1;
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
@@ -177,11 +168,42 @@ void DisplayButtonPressed(unsigned long value)
             Report("Mute was pressed. \n\r");
             break;
         default:
-            Report("Error. Data = %d\n\r", data);
             break;
     }
 }
 
+// Depicts the Color of the Text
+void DisplayColor(void)
+{
+
+    if(color == 5)
+        color = 1;
+    else
+        color++;
+
+    switch(color)
+    {
+        case 1:
+            Report("Color is now: WHITE \n\r");
+            break;
+        case 2:
+            Report("Color is now: BLUE \n\r");
+            break;
+        case 3:
+            Report("Color is now: GREEN \n\r");
+            break;
+        case 4:
+            Report("Color is now: CYAN \n\r");
+            break;
+        case 5:
+            Report("Color is now: RED \n\r");
+            break;
+        default:
+            break;
+    }
+}
+
+// Standard Letter of Each Button
 char firstLetter(unsigned long value)
 {
     char letter;
@@ -193,7 +215,7 @@ char firstLetter(unsigned long value)
             break;
         case B1:
             letter = '*';
-            Report("letter: color, %c \n\r", letter);
+            DisplayColor();
             break;
         case B2:
             letter = 'a';
@@ -242,6 +264,7 @@ char firstLetter(unsigned long value)
     return letter;
 }
 
+// Helps the Button Presses Iterate
 char DisplayNextLetter(char l)
 {
     char letter;
@@ -253,7 +276,7 @@ char DisplayNextLetter(char l)
             break;
         case '*':
             letter = '*';
-            Report("letter: %c Choose Color \n \r", letter);
+            DisplayColor();
             break;
         case 'a':
             letter = 'b';
@@ -373,6 +396,7 @@ char DisplayNextLetter(char l)
     }
     return letter;
 }
+
 /**
  * Reset SysTick Counter
  */
@@ -437,6 +461,8 @@ static void SysTickInit(void) {
     MAP_SysTickEnable();
 }
 
+
+// UART Handler
 void UARTIntHandler(void)
 {
     // Checks Interrupt Status
@@ -452,6 +478,7 @@ void UARTIntHandler(void)
     }
 }
 
+// Sets Up UART Communication
 void UART_Communication(void)
 {
     MAP_UARTConfigSetExpClk(UARTA1_BASE, SYSCLK, UART_BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
@@ -465,6 +492,7 @@ void UART_Communication(void)
     MAP_UARTIntEnable(UARTA1_BASE, UART_INT_RX);
 }
 
+// Sets Up SPI Comm
 static void SPI_Communication(void){
 
     //
@@ -533,7 +561,6 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
 
     SW_intcount++;
 
-
     // Resets interrupt handle for next button pressed
     if (SW_intcount == 34) {
         SW_intcount = 0;
@@ -542,7 +569,6 @@ static void GPIOA2IntHandler(void) {    // SW2 handler
     }
 
     unsigned long ulStatus;
-
     ulStatus = MAP_GPIOIntStatus (button.port, true);
     MAP_GPIOIntClear(button.port, ulStatus);       // clear interrupts on GPIOA2
 
@@ -596,6 +622,8 @@ int main() {
     SW_intcount=0;
     SW_intflag=0;
 
+    //int col = 0;
+
     // Enable SW2 and SW3 interrupts
     MAP_GPIOIntEnable(button.port, button.pin);
 
@@ -610,8 +638,6 @@ int main() {
     currButton = -2;
     prevButton = -1;
     char letter;
-    //uint64_t delta, delta_us;
-
 
     while (1) {
         while(SW_intflag == 0){;}
@@ -650,24 +676,42 @@ int main() {
         }
 
         // Returns the Button Selected if there are Consecutive Presses
-        Report("letter %c selected \n\r", letter);
+        if(letter != '*')
+            Report("letter %c selected \n\r", letter);
 
         // Prints full String
         if (letter == '+') {
             Report("String: %s \n\r", buffer);
+
+            // Sends Buffer Through UART
+            int i=0;
+            for(i = 0; i < bufIndex; i++)
+            {
+                //if(buffer[i] != '*')
+                  //  Report("String: %c \n\r", buffer[i]);
+
+                MAP_UARTCharPut(UARTA1_BASE, buffer[i]);
+            }
             bufIndex = 0;
-            int i;
-            for (i = 0; i < 32; i++) {
+            MAP_UARTCharPut(UARTA1_BASE, '=');
+            // Resets Buffer
+            for (i = 0; i < 64; i++) {
                 buffer[i] = '\0';
             }
+
         } // Deletes Last Letter
         else if (letter == '-') {
             if (bufIndex > 0) {
                 buffer[--bufIndex] = '\0';
+                buffer[--bufIndex] = '\0';
             }
         } // Sets New Letter
         else {
-            buffer[bufIndex++] = letter;
+            if(letter != '*')
+            {
+                buffer[bufIndex++] = letter;
+                buffer[bufIndex++] = color;
+            }
         }
 
         // Saves New Button Information
@@ -681,4 +725,3 @@ int main() {
 //! @}
 //
 //*****************************************************************************
-
